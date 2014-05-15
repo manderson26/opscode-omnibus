@@ -1,5 +1,5 @@
 name "opscode-account"
-default_version "rel-1.49.0"
+default_version "ma/fix-createorgtool"
 
 dependency "ruby"
 dependency "bundler"
