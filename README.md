@@ -158,7 +158,7 @@ $ kitchen login ubuntu-1204
 [vagrant@ubuntu...] $ cd opscode-omnibus
 [vagrant@ubuntu...] $ bundle install --binstubs
 [vagrant@ubuntu...] $ ...
-[vagrant@ubuntu...] $ bin/omnibus build chef-server
+[vagrant@ubuntu...] $ bin/omnibus build chef-server -l internal
 ```
 or if you prefer not to use binstubs and to use bundle exec instead:
 
@@ -167,7 +167,7 @@ $ kitchen login ubuntu-1204
 [vagrant@ubuntu...] $ cd opscode-omnibus
 [vagrant@ubuntu...] $ bundle install
 [vagrant@ubuntu...] $ ...
-[vagrant@ubuntu...] $ bundle exec omnibus build chef-server
+[vagrant@ubuntu...] $ bundle exec omnibus build chef-server -l internal
 ```
 
 For a complete list of all commands and platforms, run `kitchen list` or
