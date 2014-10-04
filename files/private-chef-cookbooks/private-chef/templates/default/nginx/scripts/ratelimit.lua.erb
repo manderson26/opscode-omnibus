@@ -16,6 +16,19 @@
 -- qty (amount to increment)
 -- max
 
+-- Right now expects entries of form
+--redis-cli  -p 16379 HGETALL rl_default
+-- 1) "next_fill"
+-- 2) "1570"
+-- 3) "max"
+-- 4) "100"
+-- 5) "timestep"
+-- 6) "10"
+-- 7) "qty"
+-- 8) "10"
+-- 9) "value"
+--10) "99"
+
 local orgname = KEYS[1]
 local endpoint = KEYS[2]
 local now = ARGV[1]
