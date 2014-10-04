@@ -31,6 +31,10 @@ http {
   lua_shared_dict maint_data 1m;
   lua_shared_dict banned_ips 1m;
 
+  # A separate cache for rate limit sha on redis server
+  # so that it doesn't get wiped out when we flush/refresh banned_ips
+  # and maint_data
+  lua_shared_dict ratelimit 100k;
   # Preload some shared modules globally
   init_by_lua '
     redis = require("resty/redis")

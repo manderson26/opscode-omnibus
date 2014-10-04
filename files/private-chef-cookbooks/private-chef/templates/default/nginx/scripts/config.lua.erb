@@ -64,7 +64,6 @@ local function redis_pipelined_get_config(red, orgname)
   local results, err = red:commit_pipeline()
   if not results then
     ngx.log(ngx.ERR, "failed to commit the pipelined requests: " .. err )
-    results = failsafe_config
   end
   return results
 end
@@ -113,6 +112,27 @@ local function refresh_expiring_set(shared_dict, name, interval)
   end
 end
 
+function config.initialize_rate_limiting()
+  local rldata = ngx.shared.ratelimit
+  local f = io.open("/var/opt/opscode/nginx/etc/scripts/ratelimit.lua", "r")
+  local content = f:read("*all")
+  f:close()
+  local ok, red = connect_redis()
+  if ok then
+    local results, err = red:script("load", content)
+    if not results then
+      ngx.log(ngx.ERR, "failed to initialize rate limiting " .. err )
+    else
+      ngx.log(ngx.ERR, "Rate limiting initialized: " .. results)
+      rldata:set("sha", results)
+    end
+    close_redis(red)
+  else
+    ngx.log(ngx.ERR, "failed to initialize rate limiting  - could not open reconnection" )
+  end
+end
+
+
 -- return true if our systems are in maintenance mode
 -- and the remote address is not excluded from maintenance mode
 -- will refresh maint-mode state and whitelisted IPs periodically.
@@ -143,6 +163,46 @@ end
 
 function config.is_addr_banned(remote_addr)
   return false
+end
+
+function config.is_org_rate_limit_exceeded(orgname, endpoint)
+  if not endpoint then
+    endpoint = "none"
+  end
+  if not orgname then
+    orgname =  "_OC_INTERNAL_NO_ORG"
+  end
+
+  -- look up the sha of the registered function
+  local rl = ngx.shared.ratelimit
+  funcsha = rl:get('sha')
+  -- TODO this is a temporary workaround
+  -- to the fact that cosockets aren't available
+  -- in the init_by_lua block, which prevents the
+  -- redis driver from connecting during initialization
+  -- in the worst case, we'll have more than one worker
+  -- initializing concurrently.
+  -- since they are loading the same script into redis, the
+  -- returned sha will be unchanged.
+  if not funcsha then
+    config.initialize_rate_limiting()
+    funcsha = rl:get('sha')
+  end
+
+  local ok, red = connect_redis()
+  if ok then
+    ngx.log(ngx.ERR, "Attempting to eval: " ..  funcsha .. " " .. orgname .. " " .. endpoint)
+    result, err = red:evalsha(funcsha, "2", orgname, endpoint, tostring(ngx.time))
+    if err  then
+      ngx.log(ngx.ERR, "could not execute rate limit check in redis - " .. err)
+      result = 0
+    else
+      result = b_to_i(result)
+    end
+  else
+    result = 0
+  end
+  return result
 end
 
 -- Get 'raw' org configuration - nested array of darklaunch rules

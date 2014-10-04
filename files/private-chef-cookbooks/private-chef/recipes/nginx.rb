@@ -121,6 +121,7 @@ lbconf = node['private_chef']['lb'].to_hash.merge(nginx_vars).merge({
  "resolver.lua",
  "route_checks.lua",
  "routes.lua",
+ "ratelimit.lua",
  "dispatch_route.lua"].each do |script|
   template File.join(nginx_scripts_dir, script) do
     source "nginx/scripts/#{script}.erb"

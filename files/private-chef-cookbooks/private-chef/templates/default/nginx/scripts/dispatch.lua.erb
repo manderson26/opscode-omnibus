@@ -73,6 +73,13 @@ if not route.route_id then
   ngx.exit(ngx.HTTP_NOT_FOUND)
 end
 
+-- Check for rate limiting. This will eventually return not only an indicator
+-- of overlimit, but a recommended backoff time for the client in seconds.
+if config.is_org_rate_limit_exceeded(route.org_name, route.endpoint) then
+  ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
+  ngx.say('{"error": "slow down, you move too fast/you got to make the morning last -- Paul Simon, 59th Street Bridge Song"}')
+  ngx.exit(ngx.HTTP_OK)
+end
 -- Load restrictions and darklaunch constraints for this org.
 -- note that org name may not be valid - we'll use an appropriate default if it's not,
 -- such as when the URI is valid but does not contain an org name.
