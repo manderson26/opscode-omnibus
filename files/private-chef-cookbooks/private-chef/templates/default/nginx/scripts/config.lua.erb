@@ -165,7 +165,7 @@ function config.is_addr_banned(remote_addr)
   return false
 end
 
-function config.is_org_rate_limit_exceeded(orgname, endpoint)
+function config.org_rate_limit_check_passes(orgname, endpoint)
   if not endpoint then
     endpoint = "none"
   end
@@ -197,7 +197,14 @@ function config.is_org_rate_limit_exceeded(orgname, endpoint)
       ngx.log(ngx.ERR, "could not execute rate limit check in redis - " .. err)
       result = 0
     else
-      result = b_to_i(result)
+      -- currently expecting 1 [allowed] or not [0]
+      result = tonumber(result)
+      if result == "1"  then
+        result = 1
+      else
+        result = 0
+      end
+
     end
   else
     result = 0
