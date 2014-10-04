@@ -1,1 +1,69 @@
-return true
+-- Simple rate limiter
+
+-- expects the keys:
+--   organization name
+--   endpoint 
+-- and the single argmuent:
+--   time (integer seconds since epoch)
+
+-- Return true OR false
+-- 
+
+-- For each org we have a hash
+-- next_fill (time for next fill)
+-- value 
+-- timestep (time between updates)
+-- qty (amount to increment)
+-- max
+
+local orgname = KEYS[1]
+local endpoint = KEYS[2]
+local now = ARGV[1]
+local cost = 1 -- this should be adjustable in the future
+
+-- TODO Build this per org
+local name = 'rl_default'
+
+-- TODO eventally we would like to seed a missing org entry from
+-- somewhere; right now we assume that every org has an entry.
+-- Perhaps for a start we just clone a rl_default entry
+-- TODO expire time for these hashes; this will keep the redis data
+-- smaller; however we will need to manually update the expire time
+-- each request.
+
+-- maybe do this in one fetch with HGETALL and parse table; happy path
+-- only needs two values, but the update path wants the whole thing
+
+local next_fill = redis.call("HGET", name, "next_fill")
+local value = tonumber(redis.call("HGET", name, "value")) -- why tonumber?
+
+-- figure out if we need to update
+-- We rely on the atomic nature of redis-lua scripts for this to work;
+-- otherwise some sort of WATCH/MULTI would be needed
+local delta = now - next_fill
+if (delta > 0) then -- it's after the next fill
+   local update_timestep = redis.call("HGET", name, "timestep")
+   local update_qty = redis.call("HGET", name, "qty")
+   local update_max = tonumber(redis.call("HGET", name, "max")) -- why  do i need this
+   local steps = math.floor(delta / update_timestep) + 1
+   local tchange = steps * update_timestep
+   value = value + (steps * update_qty)
+  
+   if (value > update_max) then
+     value = update_max
+   end
+   redis.call("HINCRBY", name, "next_fill", tchange)
+   -- could merge this set using cleverer logic, but harder to read
+   redis.call("HSET", name, "value", value)
+   redis.log(redis.LOG_WARNING,"Updating: to "..value.." "..next_fill)
+end
+
+if (value > 0) then
+   redis.call("HINCRBY", name, "value", -cost)
+   redis.log(redis.LOG_WARNING,"true")
+   return 1
+else 
+   redis.log(redis.LOG_WARNING,"false")
+   return 0
+end
+
