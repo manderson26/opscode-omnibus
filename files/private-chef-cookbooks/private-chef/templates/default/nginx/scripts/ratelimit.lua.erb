@@ -35,7 +35,8 @@ local now = ARGV[1]
 local cost = 1 -- this should be adjustable in the future
 
 -- TODO Build this per org
-local name = 'rl_default'
+local name = "rl_org_"..orgname
+local default = "rl_default"
 
 -- TODO eventally we would like to seed a missing org entry from
 -- somewhere; right now we assume that every org has an entry.
@@ -47,8 +48,24 @@ local name = 'rl_default'
 -- maybe do this in one fetch with HGETALL and parse table; happy path
 -- only needs two values, but the update path wants the whole thing
 
+
 local next_fill = redis.call("HGET", name, "next_fill")
-local value = tonumber(redis.call("HGET", name, "value")) -- why tonumber?
+
+redis.log(redis.LOG_WARNING,"Fetch next fill: "..name.." got "..next_fill)
+
+if !next_fill then
+   -- Ok, no record yet; clone default
+   local default_data = redis.call("HGETALL", default)
+   redis.call("HMSET", name, default_data)
+
+
+   local next_fill = redis.call("HGET", name, "next_fill")
+end
+
+local value = tonumber(redis.call("HGET", name, "value")) -- why need tonumber here and not other places?
+
+
+
 
 -- figure out if we need to update
 -- We rely on the atomic nature of redis-lua scripts for this to work;
